@@ -44,6 +44,16 @@
     gap: 16px;
 }
 
+.error-message {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    color: #ef4444;
+    font-size: 14px;
+    text-align: center;
+}
+
 .form-group {
     display: flex;
     flex-direction: column;

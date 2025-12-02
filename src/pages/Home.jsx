@@ -1,25 +1,46 @@
-import '../styles/Home.css'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import bookingService from '../services/bookingService'
 import MovieCard from '../components/MovieCard'
+import '../styles/Home.css'
 
-// Placeholder images - you'll replace these with actual movie images
-const movies = [
-  { id: 1, title: 'Furor', genre: 'Acción, Extrema', rating: 4.5, category: 'Acción' },
-  { id: 2, title: 'Lovine Drame', genre: 'Amor, Épico', rating: 4.8, category: 'Familia' },
-  { id: 3, title: 'Nueva Oportunidad', genre: 'Comedia', rating: 4.2, category: 'Comedia' },
-  { id: 4, title: 'Horror', genre: 'Terror, Moderna', rating: 4.6, category: 'Terror' },
-  { id: 5, title: 'Futuro Inteligente', genre: 'Ciencia Ficción', rating: 4.7, category: 'Otro' },
-  { id: 6, title: 'Conflicto Familiar', genre: 'Comedia, Familiar', rating: 4.1, category: 'Familia' },
-  { id: 7, title: 'Sociedad Total', genre: 'Suspenso, Total', rating: 4.4, category: 'Terror' },
-  { id: 8, title: 'Ritmo y Melodía', genre: 'Musical', rating: 4.3, category: 'Otro' },
-]
-
-const upcoming = [
-  { id: 9, title: 'Superhéroe', genre: 'Estreno en 2 días', category: 'Acción' },
-  { id: 10, title: 'Aventura Mágica', genre: 'Estreno en 5 días', category: 'Familia' },
-  { id: 11, title: 'Ciencia Ficción', genre: 'Estreno en 1 semana', category: 'Otro' },
-]
+import authService from '../services/authService'
 
 function Home() {
+  const navigate = useNavigate()
+  const [movies, setMovies] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState('Todos')
+
+  useEffect(() => {
+    fetchMovies()
+  }, [])
+
+  const fetchMovies = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await bookingService.getMoviesWithSchedules()
+      setMovies(response.data || response.movies || [])
+    } catch (err) {
+      console.error('Error fetching movies:', err)
+      setError('Error al cargar las películas')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await authService.logout()
+    navigate('/')
+  }
+
+  const filteredMovies = selectedCategory === 'Todos' 
+    ? movies 
+    : movies.filter(movie => movie.genre === selectedCategory)
+
   return (
     <div className="home-container">
       {/* Header */}
@@ -33,7 +54,12 @@ function Home() {
             <a href="#" className="nav-link active">Cartelera</a>
             <a href="#" className="nav-link">Proximamente</a>
           </nav>
-          <button className="btn-tickets">Ver boletos</button>
+          <div className="header-actions">
+            <button className="btn-tickets">Ver boletos</button>
+            <button className="btn-logout" onClick={handleLogout} title="Cerrar Sesión">
+              <i className="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -63,38 +89,67 @@ function Home() {
         <div className="section-header">
           <h2 className="section-title">En Cartelera</h2>
           <div className="filters">
-            <button className="filter-btn active">Todos</button>
-            <button className="filter-btn">Acción</button>
-            <button className="filter-btn">Familia</button>
-            <button className="filter-btn">Terror</button>
-            <button className="filter-btn">Comedia</button>
-            <button className="filter-btn">Otro</button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Todos' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Todos')}
+            >
+              Todos
+            </button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Acción' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Acción')}
+            >
+              Acción
+            </button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Familia' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Familia')}
+            >
+              Familia
+            </button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Terror' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Terror')}
+            >
+              Terror
+            </button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Comedia' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Comedia')}
+            >
+              Comedia
+            </button>
+            <button 
+              className={`filter-btn ${selectedCategory === 'Otro' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Otro')}
+            >
+              Otro
+            </button>
           </div>
         </div>
-        <div className="movies-grid">
-          {movies.map(movie => (
-            <MovieCard key={movie.id} movie={movie} />
-          ))}
-        </div>
-      </section>
 
-      {/* Próximamente */}
-      <section className="section">
-        <h2 className="section-title">Próximamente</h2>
-        <div className="upcoming-grid">
-          {upcoming.map(movie => (
-            <div key={movie.id} className="upcoming-card">
-              <div className="upcoming-image">
-                <span className="upcoming-icon">🎬</span>
-              </div>
-              <div className="upcoming-info">
-                <h3 className="upcoming-title">{movie.title}</h3>
-                <p className="upcoming-genre">{movie.genre}</p>
-                <button className="btn-notify">Notificarme</button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <p>Cargando películas...</p>
+          </div>
+        )}
+
+        {error && (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#ef4444' }}>
+            <p>{error}</p>
+            <button onClick={fetchMovies} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#8b5cf6', color: 'white', borderRadius: '8px' }}>
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="movies-grid">
+            {filteredMovies.map(movie => (
+              <MovieCard key={movie._id || movie.id} movie={movie} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Footer */}
@@ -131,3 +186,4 @@ function Home() {
 }
 
 export default Home
+

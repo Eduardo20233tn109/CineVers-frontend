@@ -1,17 +1,48 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import authService from '../services/authService'
 import '../styles/Login.css'
 
 function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Simple validation
-    if (email && password) {
-      navigate('/home')
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await authService.login(email, password)
+      
+      if (response.success) {
+        // Redirect based on role
+        const userRole = response.user.role
+        
+        if (userRole === 'gerente' || userRole === 'taquilla') {
+          navigate('/admin/dashboard')
+        } else {
+          navigate('/home')
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err)
+      
+      // Handle different error types
+      if (err.response?.data?.message) {
+        setError(err.response.data.message)
+      } else if (err.response?.status === 401) {
+        setError('Correo o contraseña incorrectos')
+      } else if (!err.response) {
+        setError('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.')
+      } else {
+        setError('Error al iniciar sesión. Intenta de nuevo.')
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -25,6 +56,12 @@ function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+
           <div className="form-group">
             <input
               type="email"
@@ -33,6 +70,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -44,14 +82,15 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="btn-primary">
-            Iniciar Sesión
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
 
-          <button type="button" className="btn-google">
+          <button type="button" className="btn-google" disabled={loading}>
             <span className="google-icon">G</span>
             Continuar con Google
           </button>
