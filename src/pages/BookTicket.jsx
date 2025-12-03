@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { Clapperboard } from 'lucide-react'
 import ProgressStepper from '../components/ProgressStepper'
 import bookingService from '../services/bookingService'
 import '../styles/BookTicket.css'
@@ -62,12 +63,12 @@ function BookTicket() {
       {/* Header */}
       <header className="header">
         <div className="header-content">
-          <div className="logo" onClick={() => navigate('/home')}>
-            <span className="logo-icon">🎬</span>
+          <div className="logo" onClick={() => navigate('/')}>
+            <Clapperboard size={28} color="#ec4899" />
             <span className="logo-text">CineVers</span>
           </div>
           <nav className="nav">
-            <a href="/home" className="nav-link">Cartelera</a>
+            <a href="/" className="nav-link">Cartelera</a>
             <a href="#" className="nav-link">Próximamente</a>
             <a href="#" className="nav-link">Promociones</a>
           </nav>

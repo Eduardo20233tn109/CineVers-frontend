@@ -40,7 +40,11 @@ function Peliculas() {
       const filters = {}
       if (generoFilter !== 'Género') filters.genre = generoFilter
       if (clasificacionFilter !== 'Clasificación') filters.classification = clasificacionFilter
-      if (estadoFilter !== 'Estado') filters.status = estadoFilter === 'En Cartelera' ? 'activa' : 'inactiva'
+      if (estadoFilter !== 'Estado') {
+        if (estadoFilter === 'En Cartelera') filters.status = 'activa'
+        else if (estadoFilter === 'Próximamente') filters.status = 'proximamente'
+        else if (estadoFilter === 'Inactiva') filters.status = 'inactiva'
+      }
       
       const response = await movieService.getMovies(filters)
       setMovies(response.data || response.movies || [])
@@ -183,6 +187,7 @@ function Peliculas() {
             <option>Estado</option>
             <option>En Cartelera</option>
             <option>Próximamente</option>
+            <option>Inactiva</option>
           </select>
         </div>
         
@@ -240,8 +245,11 @@ function Peliculas() {
                     </td>
                     <td>
                       <span className={`status-badge ${movie.status === 'activa' ? 'status-active' : ''}`}
-                        style={movie.status !== 'activa' ? { background: '#fef3c7', color: '#d97706' } : {}}>
-                        {movie.status === 'activa' ? 'En Cartelera' : 'Inactiva'}
+                        style={
+                          movie.status === 'proximamente' ? { background: '#dbeafe', color: '#1e40af' } :
+                          movie.status === 'inactiva' ? { background: '#fef3c7', color: '#d97706' } : {}
+                        }>
+                        {movie.status === 'activa' ? 'En Cartelera' : movie.status === 'proximamente' ? 'Próximamente' : 'Inactiva'}
                       </span>
                     </td>
                     <td>
@@ -299,7 +307,7 @@ function Peliculas() {
               <div className="detail-item">
                 <span className="detail-label">Estado</span>
                 <span className="detail-value">
-                  {viewModal.movie.status === 'activa' ? 'En Cartelera' : 'Inactiva'}
+                  {viewModal.movie.status === 'activa' ? 'En Cartelera' : viewModal.movie.status === 'proximamente' ? 'Próximamente' : 'Inactiva'}
                 </span>
               </div>
               <div className="detail-item" style={{ gridColumn: '1 / -1' }}>
@@ -384,6 +392,7 @@ function Peliculas() {
                 required
               >
                 <option value="activa">En Cartelera</option>
+                <option value="proximamente">Próximamente</option>
                 <option value="inactiva">Inactiva</option>
               </select>
             </div>
@@ -480,6 +489,7 @@ function Peliculas() {
                 required
               >
                 <option value="activa">En Cartelera</option>
+                <option value="proximamente">Próximamente</option>
                 <option value="inactiva">Inactiva</option>
               </select>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Clapperboard, LogOut, LogIn, Film, User } from 'lucide-react'
 import bookingService from '../services/bookingService'
 import MovieCard from '../components/MovieCard'
 import '../styles/Home.css'
@@ -13,9 +14,16 @@ function Home() {
   const [error, setError] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('Todos')
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
   useEffect(() => {
+    checkAuth()
     fetchMovies()
   }, [])
+
+  const checkAuth = () => {
+    setIsAuthenticated(authService.isAuthenticated())
+  }
 
   const fetchMovies = async () => {
     try {
@@ -34,12 +42,22 @@ function Home() {
 
   const handleLogout = async () => {
     await authService.logout()
+    setIsAuthenticated(false)
     navigate('/')
   }
 
-  const filteredMovies = selectedCategory === 'Todos' 
-    ? movies 
-    : movies.filter(movie => movie.genre === selectedCategory)
+  const handleLogin = () => {
+    navigate('/login')
+  }
+
+  // Filtrar películas por estado
+  const carteleraMovies = selectedCategory === 'Todos' 
+    ? movies.filter(movie => movie.status === 'activa')
+    : movies.filter(movie => movie.status === 'activa' && movie.genre === selectedCategory)
+
+  const proximamenteMovies = selectedCategory === 'Todos'
+    ? movies.filter(movie => movie.status === 'proximamente')
+    : movies.filter(movie => movie.status === 'proximamente' && movie.genre === selectedCategory)
 
   return (
     <div className="home-container">
@@ -47,7 +65,7 @@ function Home() {
       <header className="header">
         <div className="header-content">
           <div className="logo">
-            <span className="logo-icon">🎬</span>
+            <Clapperboard size={32} color="#ec4899" />
             <span className="logo-text">CineVers</span>
           </div>
           <nav className="nav">
@@ -55,10 +73,20 @@ function Home() {
             <a href="#" className="nav-link">Proximamente</a>
           </nav>
           <div className="header-actions">
-            <button className="btn-tickets">Ver boletos</button>
-            <button className="btn-logout" onClick={handleLogout} title="Cerrar Sesión">
-              <i className="fa-solid fa-right-from-bracket"></i>
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button className="btn-profile" onClick={() => navigate('/profile')} style={{ marginRight: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <User size={18} /> Mi Perfil
+                </button>
+                <button className="btn-logout" onClick={handleLogout}>
+                  <LogOut size={18} /> Cerrar Sesión
+                </button>
+              </>
+            ) : (
+              <button className="btn-logout" onClick={handleLogin} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                <LogIn size={18} /> Iniciar Sesión
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -78,7 +106,7 @@ function Home() {
           </div>
           <div className="hero-image">
             <div className="cinema-placeholder">
-              <span className="cinema-icon">🎭</span>
+              <Film size={80} color="rgba(255,255,255,0.5)" />
             </div>
           </div>
         </div>
@@ -145,12 +173,32 @@ function Home() {
 
         {!loading && !error && (
           <div className="movies-grid">
-            {filteredMovies.map(movie => (
-              <MovieCard key={movie._id || movie.id} movie={movie} />
-            ))}
+            {carteleraMovies.length > 0 ? (
+              carteleraMovies.map(movie => (
+                <MovieCard key={movie._id || movie.id} movie={movie} />
+              ))
+            ) : (
+              <p style={{ textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>
+                No hay películas en cartelera en este momento
+              </p>
+            )}
           </div>
         )}
       </section>
+
+      {/* Próximamente */}
+      {!loading && !error && proximamenteMovies.length > 0 && (
+        <section className="section" style={{ background: '#0f0f23' }}>
+          <div className="section-header">
+            <h2 className="section-title">Próximamente</h2>
+          </div>
+          <div className="movies-grid">
+            {proximamenteMovies.map(movie => (
+              <MovieCard key={movie._id || movie.id} movie={movie} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="footer">

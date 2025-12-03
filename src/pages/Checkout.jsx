@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { Clapperboard } from 'lucide-react'
 import ProgressStepper from '../components/ProgressStepper'
+import SuccessModal from '../components/SuccessModal'
 import bookingService from '../services/bookingService'
 import authService from '../services/authService'
 import paymentService from '../services/paymentService'
@@ -12,9 +14,19 @@ function Checkout() {
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [purchaseType, setPurchaseType] = useState('compra') // 'compra' or 'reserva'
   const [paymentMethod, setPaymentMethod] = useState('card')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptPromotions, setAcceptPromotions] = useState(false)
+  
+  // Modal State
+  const [showModal, setShowModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState('')
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    navigate('/')
+  }
   
   // Card Form State
   const [cardData, setCardData] = useState({
@@ -42,7 +54,7 @@ function Checkout() {
       const scheduleData = JSON.parse(sessionStorage.getItem('scheduleData') || '{}')
       
       if (seats.length === 0 || !storedMovieId || !storedScheduleId) {
-        navigate('/home')
+        navigate('/')
         return
       }
 
@@ -65,7 +77,7 @@ function Checkout() {
       })
     } catch (err) {
       console.error('Error loading order data:', err)
-      navigate('/home')
+      navigate('/')
     }
   }
 
@@ -85,52 +97,64 @@ function Checkout() {
       return
     }
 
-    if (paymentMethod !== 'card') {
-      setError('Por el momento solo aceptamos pagos con tarjeta')
-      return
-    }
+    // Si es compra, validar método de pago
+    if (purchaseType === 'compra') {
+      if (paymentMethod !== 'card') {
+        setError('Por el momento solo aceptamos pagos con tarjeta')
+        return
+      }
 
-    // Basic validation
-    if (!cardData.cardNumber || !cardData.expiry || !cardData.cvv || !cardData.cardName) {
-      setError('Por favor completa todos los datos de la tarjeta')
-      return
+      // Basic validation
+      if (!cardData.cardNumber || !cardData.expiry || !cardData.cvv || !cardData.cardName) {
+        setError('Por favor completa todos los datos de la tarjeta')
+        return
+      }
     }
 
     try {
       setLoading(true)
       setError(null)
 
-      // 1. Parse Expiry Date
-      const [expMonth, expYear] = cardData.expiry.split('/')
-      if (!expMonth || !expYear || expMonth.length !== 2 || expYear.length !== 2) {
-        throw new Error('Fecha de vencimiento inválida (MM/AA)')
+      let paymentMethodId = null
+
+      // Solo procesar pago si es compra
+      if (purchaseType === 'compra') {
+        // 1. Parse Expiry Date
+        const [expMonth, expYear] = cardData.expiry.split('/')
+        if (!expMonth || !expYear || expMonth.length !== 2 || expYear.length !== 2) {
+          throw new Error('Fecha de vencimiento inválida (MM/AA)')
+        }
+
+        // 2. Save Card first to get ID
+        const cardPayload = {
+          cardNumber: cardData.cardNumber.replace(/\s/g, ''),
+          cardholderName: cardData.cardName,
+          expirationMonth: expMonth,
+          expirationYear: `20${expYear}`,
+          cardType: 'credito',
+          alias: `Tarjeta ${cardData.cardNumber.slice(-4)}`
+        }
+
+        const cardResponse = await paymentService.saveCard(cardPayload)
+        
+        if (!cardResponse.success || !cardResponse.paymentMethod?.id) {
+          throw new Error('Error al procesar la tarjeta')
+        }
+
+        paymentMethodId = cardResponse.paymentMethod.id
       }
 
-      // 2. Save Card first to get ID
-      const cardPayload = {
-        cardNumber: cardData.cardNumber.replace(/\s/g, ''),
-        cardholderName: cardData.cardName,
-        expirationMonth: expMonth,
-        expirationYear: `20${expYear}`,
-        cardType: 'credito', // Defaulting to credito for simplicity, logic could be added to detect
-        alias: `Tarjeta ${cardData.cardNumber.slice(-4)}`
-      }
-
-      const cardResponse = await paymentService.saveCard(cardPayload)
-      
-      if (!cardResponse.success || !cardResponse.paymentMethod?.id) {
-        throw new Error('Error al procesar la tarjeta')
-      }
-
-      const paymentMethodId = cardResponse.paymentMethod.id
-
-      // 3. Finalize Purchase
+      // 3. Finalize Purchase or Reservation
       const purchaseData = {
         movieId,
         scheduleId,
-        seatIds: selectedSeats.map(s => s._id), // Changed to seatIds
-        paymentMethodId, // Changed to paymentMethodId
-        type: 'compra',
+        seatIds: selectedSeats.map(s => s._id),
+        type: purchaseType, // 'compra' or 'reserva'
+      }
+
+      // Solo agregar paymentMethodId si es compra
+      if (purchaseType === 'compra' && paymentMethodId) {
+        purchaseData.paymentMethodId = paymentMethodId
       }
 
       const response = await bookingService.purchase(purchaseData)
@@ -144,9 +168,13 @@ function Checkout() {
         sessionStorage.removeItem('movieData')
         sessionStorage.removeItem('scheduleData')
         
-        // Show success message and redirect to home
-        alert('¡Compra exitosa! Tus boletos han sido enviados a tu correo electrónico.')
-        navigate('/home')
+        // Show success message based on type
+        if (purchaseType === 'compra') {
+          setModalMessage('¡Compra exitosa! Tus boletos han sido enviados a tu correo electrónico.')
+        } else {
+          setModalMessage('¡Reserva exitosa! Recuerda pagar antes de la función. Detalles enviados a tu correo.')
+        }
+        setShowModal(true)
       }
     } catch (err) {
       console.error('Purchase error:', err)
@@ -171,12 +199,12 @@ function Checkout() {
     <div className="checkout-container">
       <header className="header">
         <div className="header-content">
-          <div className="logo" onClick={() => navigate('/home')}>
-            <span className="logo-icon">🎬</span>
+          <div className="logo" onClick={() => navigate('/')}>
+            <Clapperboard size={28} color="#ec4899" />
             <span className="logo-text">CineVers</span>
           </div>
           <nav className="nav">
-            <a href="/home" className="nav-link">Cartelera</a>
+            <a href="/" className="nav-link">Cartelera</a>
           </nav>
           <div className="user-avatar">
             <span>👤</span>
@@ -229,7 +257,37 @@ function Checkout() {
             </div>
           </div>
 
-          {/* Payment Method */}
+          {/* Purchase Type Selection */}
+          <div className="section-card">
+            <h2 className="section-title">Tipo de Transacción</h2>
+            
+            <div className="payment-methods">
+              <div 
+                className={`payment-option ${purchaseType === 'compra' ? 'selected' : ''}`}
+                onClick={() => setPurchaseType('compra')}
+              >
+                <div className="payment-icon">💳</div>
+                <div className="payment-info">
+                  <h4>Comprar Ahora</h4>
+                  <p>Pago inmediato - Boleto confirmado</p>
+                </div>
+              </div>
+
+              <div 
+                className={`payment-option ${purchaseType === 'reserva' ? 'selected' : ''}`}
+                onClick={() => setPurchaseType('reserva')}
+              >
+                <div className="payment-icon">📅</div>
+                <div className="payment-info">
+                  <h4>Reservar</h4>
+                  <p>Sin pago - Pagar antes de la función</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Method - Solo si es compra */}
+          {purchaseType === 'compra' && (
           <div className="section-card">
             <h2 className="section-title">Método de Pago</h2>
             
@@ -322,6 +380,7 @@ function Checkout() {
               </form>
             )}
           </div>
+          )}
         </div>
 
         {/* Right Side - Contact Info */}
@@ -401,6 +460,12 @@ function Checkout() {
           </div>
         </div>
       </div>
+      {/* Success Modal */}
+      <SuccessModal 
+        isOpen={showModal} 
+        message={modalMessage} 
+        onClose={handleCloseModal}
+      />
     </div>
   )
 }

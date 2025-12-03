@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Clapperboard } from 'lucide-react'
 import authService from '../services/authService'
 import '../styles/Login.css'
 
 function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -19,13 +21,14 @@ function Login() {
       const response = await authService.login(email, password)
       
       if (response.success) {
-        // Redirect based on role
+        // Redirect based on role or previous location
         const userRole = response.user.role
+        const from = location.state?.from?.pathname || '/'
         
         if (userRole === 'gerente' || userRole === 'taquilla') {
           navigate('/admin/dashboard')
         } else {
-          navigate('/home')
+          navigate(from)
         }
       }
     } catch (err) {
@@ -50,7 +53,9 @@ function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="logo-icon">🎬</div>
+          <div className="logo-icon">
+            <Clapperboard size={48} color="#ec4899" />
+          </div>
           <h1 className="logo-text">CineVers</h1>
           <p className="login-subtitle">Inicia sesión para continuar</p>
         </div>
@@ -90,13 +95,8 @@ function Login() {
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
 
-          <button type="button" className="btn-google" disabled={loading}>
-            <span className="google-icon">G</span>
-            Continuar con Google
-          </button>
-
           <p className="register-link">
-            ¿No tienes cuenta? <a href="#">Regístrate</a>
+            ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
           </p>
         </form>
       </div>

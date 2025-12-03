@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { Clapperboard } from 'lucide-react'
 import ProgressStepper from '../components/ProgressStepper'
 import bookingService from '../services/bookingService'
 import '../styles/SeatSelection.css'
@@ -37,7 +38,7 @@ function SeatSelection() {
   }
 
   const handleSeatClick = (seat) => {
-    if (seat.status === 'occupied' || seat.status === 'reserved') return
+    if (['ocupado', 'reservado', 'occupied', 'reserved'].includes(seat.status)) return
     
     if (selectedSeats.find(s => s._id === seat._id)) {
       setSelectedSeats(selectedSeats.filter(s => s._id !== seat._id))
@@ -96,8 +97,8 @@ function SeatSelection() {
     <div className="seat-selection-container">
       <header className="header">
         <div className="header-content">
-          <div className="logo" onClick={() => navigate('/home')}>
-            <span className="logo-icon">🎬</span>
+          <div className="logo" onClick={() => navigate('/')}>
+            <Clapperboard size={28} color="#ec4899" />
             <span className="logo-text">CineVers</span>
           </div>
           {movie && (
@@ -140,17 +141,32 @@ function SeatSelection() {
                 <div key={row} className="seat-row">
                   <span className="row-label">{row}</span>
                   <div className="row-seats">
-                    {seatsByRow[row].map((seat) => (
-                      <button
-                        key={seat._id}
-                        className={`seat ${seat.type || 'regular'} ${seat.status} ${
-                          selectedSeats.find(s => s._id === seat._id) ? 'selected' : ''
-                        }`}
-                        onClick={() => handleSeatClick(seat)}
-                        disabled={seat.status === 'occupied' || seat.status === 'reserved'}
-                        title={`${row}${seat.number}`}
-                      />
-                    ))}
+                    {seatsByRow[row].map((seat) => {
+                      // Map backend status (spanish) to frontend class (english)
+                      const statusClass = 
+                        seat.status === 'ocupado' ? 'occupied' : 
+                        seat.status === 'reservado' ? 'occupied' : 
+                        seat.status === 'disponible' ? 'available' :
+                        seat.status;
+
+                      const isUnavailable = ['ocupado', 'reservado', 'occupied', 'reserved'].includes(seat.status);
+                      
+                      // Determine if VIP (Row A is VIP)
+                      const isVip = seat.row === 'A';
+                      const seatType = isVip ? 'vip' : (seat.type || 'regular');
+
+                      return (
+                        <button
+                          key={seat._id}
+                          className={`seat ${seatType} ${statusClass} ${
+                            selectedSeats.find(s => s._id === seat._id) ? 'selected' : ''
+                          }`}
+                          onClick={() => handleSeatClick({ ...seat, type: seatType })}
+                          disabled={isUnavailable}
+                          title={`${row}${seat.number} ${isVip ? '(VIP)' : ''} - ${seat.status}`}
+                        />
+                      )
+                    })}
                   </div>
                   <span className="row-label">{row}</span>
                 </div>
